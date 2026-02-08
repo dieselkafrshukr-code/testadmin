@@ -16,6 +16,72 @@ if (!supabase) {
 let productsCol = null; // Legacy support
 let adminRole = localStorage.getItem('adminRole') || 'none';
 let currentUser = null;
+let productsListBody, subCatSelect, previewImg, globalLoader, colorVariantsContainer;
+let colorVariants = [];
+let remoteProducts = [];
+
+// Catch and alert any script errors for debugging
+window.addEventListener('error', function (event) {
+    console.error("Diesel Admin Script Error:", event.error);
+    // Only alert for admin specific errors to avoid noise
+    if (event.filename && event.filename.includes('admin.js')) {
+        alert("خطأ في تشغيل النظام: " + event.message);
+    }
+});
+
+// Define Login Handler early
+window.handleManualLogin = (e) => {
+    if (e) e.preventDefault();
+    console.log("Attempting Manual Login...");
+
+    try {
+        const emailEl = document.getElementById('login-email');
+        const passEl = document.getElementById('login-password');
+        const errEl = document.getElementById('login-error');
+
+        if (!emailEl || !passEl) {
+            alert("خطأ: لم يتم العثور على حقول الإدخال!");
+            return;
+        }
+
+        const email = emailEl.value.trim();
+        const pass = passEl.value.trim();
+
+        if (errEl) errEl.style.display = 'none';
+
+        if (email === 'boss@diesel.com' && pass === 'diesel7080') {
+            // Success
+            console.log("✅ Credentials Correct");
+            currentUser = { email: email, id: 'master_admin', role: 'owner' };
+            localStorage.setItem('adminRole', 'all');
+            localStorage.setItem('manual_admin_login', 'true');
+            adminRole = 'all';
+
+            const overlay = document.getElementById('login-overlay');
+            const content = document.getElementById('admin-main-content');
+
+            if (overlay) overlay.style.display = 'none';
+            if (content) content.style.display = 'block';
+
+            applyRoleRestrictions();
+            showTab('orders');
+            loadOrders();
+
+            alert("تم تسجيل الدخول بنجاح! ✅");
+        } else {
+            console.error("❌ Credentials Incorrect");
+            if (errEl) {
+                errEl.innerText = "بيانات الدخول غير صحيحة ❌";
+                errEl.style.display = 'block';
+            } else {
+                alert("بيانات الدخول غير صحيحة ❌");
+            }
+        }
+    } catch (err) {
+        console.error("Login Handler Error:", err);
+        alert("حدث خطأ تقني في الدخول: " + err.message);
+    }
+};
 
 const governorates = [
     "القاهرة", "الجيزة", "الإسكندرية", "الدقهلية", "البحر الأحمر", "البحيرة", "الفيوم", "الغربية", "الإسماعيلية", "المنوفية", "المنيا", "القليوبية", "الوادي الجديد", "السويس", "الشرقية", "دمياط", "بورسعيد", "جنوب سيناء", "كفر الشيخ", "مطروح", "الأقصر", "قنا", "شمال سيناء", "سوهاج", "بني سويف", "أسيوط", "أسوان"
@@ -136,58 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 });
 
-window.handleManualLogin = (e) => {
-    if (e) e.preventDefault();
-    console.log("Attempting Manual Login...");
 
-    try {
-        const emailEl = document.getElementById('login-email');
-        const passEl = document.getElementById('login-password');
-        const errEl = document.getElementById('login-error');
-
-        if (!emailEl || !passEl) {
-            alert("خطأ: لم يتم العثور على حقول الإدخال!");
-            return;
-        }
-
-        const email = emailEl.value.trim();
-        const pass = passEl.value.trim();
-
-        if (errEl) errEl.style.display = 'none';
-
-        if (email === 'boss@diesel.com' && pass === 'diesel7080') {
-            // Success
-            console.log("✅ Credentials Correct");
-            currentUser = { email: email, id: 'master_admin', role: 'owner' };
-            localStorage.setItem('adminRole', 'all');
-            localStorage.setItem('manual_admin_login', 'true');
-            adminRole = 'all';
-
-            const overlay = document.getElementById('login-overlay');
-            const content = document.getElementById('admin-main-content');
-
-            if (overlay) overlay.style.display = 'none';
-            if (content) content.style.display = 'block';
-
-            applyRoleRestrictions();
-            showTab('orders');
-            loadOrders();
-
-            alert("تم تسجيل الدخول بنجاح! ✅");
-        } else {
-            console.error("❌ Credentials Incorrect");
-            if (errEl) {
-                errEl.innerText = "بيانات الدخول غير صحيحة ❌";
-                errEl.style.display = 'block';
-            } else {
-                alert("بيانات الدخول غير صحيحة ❌");
-            }
-        }
-    } catch (err) {
-        console.error("Login Handler Error:", err);
-        alert("حدث خطأ تقني: " + err.message);
-    }
-};
 
 async function loadShippingCosts() {
     const container = document.getElementById('shipping-list-container');
