@@ -565,7 +565,8 @@
                 </div>
             </div>
 
-            <form id="login-form" style="display: flex; flex-direction: column; gap: 15px;">
+            <form id="login-form" onsubmit="event.preventDefault();"
+                style="display: flex; flex-direction: column; gap: 15px;">
                 <input type="email" id="login-email" placeholder="البريد الإلكتروني" value="boss@diesel.com" required
                     style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); padding:15px; border-radius:12px; color:#fff;">
                 <input type="password" id="login-password" placeholder="كلمة المرور" required
@@ -765,7 +766,7 @@
     <script src="./js/config.js"></script>
 
     <script src="./js/products.js"></script>
-    <script src="./js/admin.js?v=9.12"></script>
+    <script src="./js/admin.js?v=9.20"></script>
 </body>
 
 </html>

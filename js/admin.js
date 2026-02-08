@@ -126,6 +126,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     updateSubCats();
     initAdminAuth();
+
+    const loginForm = document.getElementById('login-form');
+    if (loginForm) {
+        loginForm.addEventListener('submit', (e) => {
+            if (window.handleManualLogin) window.handleManualLogin(e);
+        });
+        console.log("✅ Manual login listener attached");
+    }
 });
 
 window.handleManualLogin = (e) => {
