@@ -885,3 +885,49 @@ async function exportOrders() {
     } catch (err) { console.error(err); alert("خطأ في التصدير!"); }
     showLoader(false);
 }
+
+async function setupRealtimeNotifications() {
+    if (!supabase) return;
+
+    console.log("🔔 Setting up realtime notifications...");
+
+    // Request browser notification permission
+    if (Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+
+    const channel = supabase
+        .channel('admin-orders')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'orders' }, (payload) => {
+            console.log('🆕 New order received!', payload.new);
+
+            // 1. Play sound
+            try {
+                const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
+                audio.play();
+            } catch (e) { console.error("Sound error:", e); }
+
+            // 2. Show browser notification
+            if (Notification.permission === 'granted') {
+                new Notification('طلب جديد من ' + payload.new.customerName, {
+                    body: `الإجمالي: ${payload.new.total} ج.م - العنوان: ${payload.new.gov}`,
+                    icon: 'images/logo/logo.png'
+                });
+            }
+
+            // 3. Refresh UI if on orders tab
+            const section = document.getElementById('orders-section');
+            if (section && section.style.display !== 'none') {
+                loadOrders();
+            }
+
+            // 4. Update badge
+            const badge = document.getElementById('new-orders-count');
+            if (badge) {
+                let current = parseInt(badge.innerText) || 0;
+                badge.innerText = current + 1;
+                badge.style.display = 'inline-block';
+            }
+        })
+        .subscribe();
+}
