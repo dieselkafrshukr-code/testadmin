@@ -4,22 +4,32 @@
 // Configuration and Supabase client are loaded from config.js
 
 let supabase = window.supabase;
-let isSupabaseReady = !!supabase;
+let isSupabaseReady = false;
 
 function checkSupabase() {
-    if (!supabase) {
+    if (window.supabase && typeof window.supabase.from === 'function') {
         supabase = window.supabase;
-        isSupabaseReady = !!supabase;
+        isSupabaseReady = true;
+        return true;
     }
-    return isSupabaseReady;
+    // Fallback: try to re-init if the library exists but client doesn't
+    if (typeof supabase !== 'undefined' && supabase.createClient && !window.supabase) {
+        try {
+            window.supabase = supabase.createClient(window.SUPABASE_URL, window.SUPABASE_KEY);
+            supabase = window.supabase;
+            isSupabaseReady = true;
+            return true;
+        } catch (e) { console.error(e); }
+    }
+    return false;
 }
 
-if (!checkSupabase()) {
-    console.warn("⚠️ Supabase Client not found! Trying to connect...");
-    // If config.js is defer, it might be available a bit later if checked via a function
-} else {
-    console.log("✅ Admin Panel: Connected to Supabase");
-}
+// Initial check with delay to allow defer scripts
+setTimeout(() => {
+    if (!checkSupabase()) {
+        console.warn("⚠️ Supabase still not ready after delay.");
+    }
+}, 1000);
 
 let productsCol = null; // Legacy support
 let adminRole = localStorage.getItem('adminRole') || 'none';
@@ -114,13 +124,27 @@ window.handleManualLogin = (e) => {
     }
 };
 
+let dashboardRetryCount = 0;
 function initDashboard() {
     console.log("🛠️ Initializing Dashboard Data...");
-    checkSupabase();
+    if (!checkSupabase()) {
+        dashboardRetryCount++;
+        if (dashboardRetryCount > 10) { // After 5 seconds
+            alert("⚠️ فشل الاتصال بالسيرفر. يرجى التأكد من اتصال الإنترنت أو تحديث الصفحة.");
+            const list = document.getElementById('orders-list');
+            if (list) list.innerHTML = `<div style="text-align: center; color: #f44336; padding: 20px;">حدث خطأ في الاتصال بالسيرفر. يرجى تحديث الصفحة.</div>`;
+            return;
+        }
+        console.warn("Retrying Supabase connection...");
+        setTimeout(initDashboard, 500);
+        return;
+    }
+
     applyRoleRestrictions();
     showTab('orders');
     loadOrders();
     setupRealtimeNotifications();
+    console.log("✅ Dashboard Fully Initialized");
 }
 
 
@@ -140,6 +164,7 @@ async function initAdminAuth() {
     // Check if Firebase is loaded
     if (typeof firebase === 'undefined') {
         console.error("Firebase SDK not loaded");
+        alert("⚠️ لم يتم تحميل برمجيات Firebase. تأكد من جودة الإنترنت أو جرب استخدام VPN.");
         return;
     }
 
@@ -177,23 +202,12 @@ async function initAdminAuth() {
         } else {
             // CHECK FOR MANUAL LOGIN BEFORE RESETTING
             if (localStorage.getItem('manual_admin_login') === 'true') {
-                console.log("🔓 Restoring Manual Session...");
-
-                // Restore session state
+                console.log("🔓 Session found in localStorage, restoring...");
                 currentUser = { email: 'boss@diesel.com', id: 'master_admin', role: 'owner' };
                 adminRole = 'all';
-
                 loginOverlay.style.display = 'none';
                 adminContent.style.display = 'block';
-
-                applyRoleRestrictions();
-
-                // Load critical checks if needed
-                if (!document.getElementById('products-section') || scriptFirstLoad) {
-                    showTab('orders');
-                    loadOrders();
-                    scriptFirstLoad = false;
-                }
+                initDashboard();
                 return;
             }
 
@@ -801,8 +815,13 @@ function showLoader(show) { if (globalLoader) globalLoader.style.display = show 
 
 // Order functions
 async function loadOrders() {
-    if (!isSupabaseReady || !supabase) {
-        document.getElementById('orders-list').innerHTML = "لا يوجد اتصال بالسيرفر";
+    if (!checkSupabase()) {
+        const list = document.getElementById('orders-list');
+        if (list) list.innerHTML = `<div style="text-align: center; color: #ff9800; padding: 20px;">
+            ⚠️ فشل الاتصال بقاعدة البيانات. <br>
+            جاري المحاولة مرة أخرى...
+            <button onclick="initDashboard()" style="display:block; margin: 10px auto; padding: 5px 15px;">حاول الآن</button>
+        </div>`;
         return;
     }
     if (adminRole !== 'all' && adminRole !== 'orders') return;

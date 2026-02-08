@@ -9,6 +9,14 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
     <script>
+        // Catch errors even before admin.js loads
+        window.addEventListener('error', function (e) {
+            console.error("Critical Page Error:", e.message);
+            if (e.filename && e.filename.includes('admin.js')) {
+                alert("⚠️ حدث خطأ في تحميل بيانات لوحة التحكم: " + e.message);
+            }
+        });
+
         // Critical Login Handler - Must be available ASAP
         window.handleManualLogin = (e) => {
             if (e) e.preventDefault();
@@ -42,16 +50,19 @@
                     if (overlay) overlay.style.display = 'none';
                     if (content) content.style.display = 'block';
 
-                    // If admin.js is already loaded, these will work.
+                    // Use Dashboard Init if available, else standard fallback
                     if (window.initDashboard) {
                         window.initDashboard();
-                    } else {
+                    } else if (window.loadOrders) {
                         if (window.applyRoleRestrictions) window.applyRoleRestrictions();
                         if (window.showTab) window.showTab('orders');
-                        if (window.loadOrders) window.loadOrders();
+                        window.loadOrders();
+                    } else {
+                        console.warn("Waiting for admin.js to finish loading...");
+                        // The DOMContentLoaded/onAuthStateChanged in admin.js will handle it safely
                     }
 
-                    alert("تم تسجيل الدخول بنجاح! ✅ جارٍ تحميل البيانات...");
+                    alert("تم تسجيل الدخول بنجاح! ✅ جارٍ التحميل...");
                 } else {
                     if (errEl) {
                         errEl.innerText = "بيانات الدخول غير صحيحة ❌";
@@ -62,7 +73,7 @@
                 }
             } catch (err) {
                 console.error("Login Error:", err);
-                alert("حدث خطأ بسيط في الدخول، يرجى إعادة المحاولة.");
+                alert("حدث خطأ في نظام الدخول: " + err.message);
             }
         };
     </script>
@@ -826,7 +837,7 @@
     <script defer src="./js/config.js"></script>
 
     <script defer src="./js/products.js"></script>
-    <script defer src="./js/admin.js?v=9.23"></script>
+    <script defer src="./js/admin.js?v=9.24"></script>
 </body>
 
 </html>
