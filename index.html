@@ -571,7 +571,9 @@
                     style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); padding:15px; border-radius:12px; color:#fff;">
                 <input type="password" id="login-password" placeholder="كلمة المرور" required
                     style="background:rgba(0,0,0,0.3); border:1px solid rgba(255,255,255,0.1); padding:15px; border-radius:12px; color:#fff;">
-                <button type="button" onclick="handleManualLogin(event)" class="btn-add"
+                <button type="submit"
+                    onclick="if(window.handleManualLogin) window.handleManualLogin(event); else alert('برجاء الانتظار حتى تحميل الصفحة بالكامل');"
+                    class="btn-add"
                     style="justify-content: center; width: 100%; height: 55px; font-size: 1.1rem; border-radius:12px;">
                     دخول الأدمن
                 </button>

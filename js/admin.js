@@ -137,37 +137,55 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 window.handleManualLogin = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     console.log("Attempting Manual Login...");
 
-    const email = document.getElementById('login-email').value.trim();
-    const pass = document.getElementById('login-password').value.trim();
-    const errEl = document.getElementById('login-error');
-    if (errEl) errEl.style.display = 'none';
+    try {
+        const emailEl = document.getElementById('login-email');
+        const passEl = document.getElementById('login-password');
+        const errEl = document.getElementById('login-error');
 
-    if (email === 'boss@diesel.com' && pass === 'diesel7080') {
-        // Success
-        console.log("✅ Credentials Correct");
-        currentUser = { email: email, id: 'master_admin', role: 'owner' };
-        localStorage.setItem('adminRole', 'all');
-        localStorage.setItem('manual_admin_login', 'true');
-        adminRole = 'all';
-
-        const overlay = document.getElementById('login-overlay');
-        const content = document.getElementById('admin-main-content');
-
-        if (overlay) overlay.style.display = 'none';
-        if (content) content.style.display = 'block';
-
-        applyRoleRestrictions();
-        showTab('orders');
-        loadOrders();
-    } else {
-        console.error("❌ Credentials Incorrect");
-        if (errEl) {
-            errEl.innerText = "بيانات الدخول غير صحيحة ❌";
-            errEl.style.display = 'block';
+        if (!emailEl || !passEl) {
+            alert("خطأ: لم يتم العثور على حقول الإدخال!");
+            return;
         }
+
+        const email = emailEl.value.trim();
+        const pass = passEl.value.trim();
+
+        if (errEl) errEl.style.display = 'none';
+
+        if (email === 'boss@diesel.com' && pass === 'diesel7080') {
+            // Success
+            console.log("✅ Credentials Correct");
+            currentUser = { email: email, id: 'master_admin', role: 'owner' };
+            localStorage.setItem('adminRole', 'all');
+            localStorage.setItem('manual_admin_login', 'true');
+            adminRole = 'all';
+
+            const overlay = document.getElementById('login-overlay');
+            const content = document.getElementById('admin-main-content');
+
+            if (overlay) overlay.style.display = 'none';
+            if (content) content.style.display = 'block';
+
+            applyRoleRestrictions();
+            showTab('orders');
+            loadOrders();
+
+            alert("تم تسجيل الدخول بنجاح! ✅");
+        } else {
+            console.error("❌ Credentials Incorrect");
+            if (errEl) {
+                errEl.innerText = "بيانات الدخول غير صحيحة ❌";
+                errEl.style.display = 'block';
+            } else {
+                alert("بيانات الدخول غير صحيحة ❌");
+            }
+        }
+    } catch (err) {
+        console.error("Login Handler Error:", err);
+        alert("حدث خطأ تقني: " + err.message);
     }
 };
 
