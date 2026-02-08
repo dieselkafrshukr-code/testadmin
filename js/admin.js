@@ -1,22 +1,19 @@
 
+
 // 🚀 DIESEL ADMIN ENGINE - HYBRID VERSION (Supabase Edition)
-const SUPABASE_URL = 'https://ymdnfohikgjkvdmdrthe.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_J0JuDItWsSggSZPj0ATwYA_xXlGI92x';
-let supabase = null;
-try {
-    if (window.supabase) {
-        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-    } else {
-        console.warn("Supabase SDK failed to load. Admin panel offline.");
-        isSupabaseReady = false;
-    }
-} catch (e) {
-    console.error("Supabase init failed:", e);
-    isSupabaseReady = false;
+// Configuration and Supabase client are loaded from config.js
+
+let supabase = window.supabase;
+let isSupabaseReady = !!supabase;
+
+if (!supabase) {
+    console.warn("⚠️ Supabase Client not found! Ensure config.js is loaded.");
+} else {
+    // Re-assign to local variable if needed or just rely on global
+    console.log("✅ Admin Panel: Connected to Supabase");
 }
 
-let productsCol = null; // Legacy support (not used directly, Supabase client used instead)
-let isSupabaseReady = true;
+let productsCol = null; // Legacy support
 let adminRole = localStorage.getItem('adminRole') || 'none';
 let currentUser = null;
 
@@ -25,105 +22,98 @@ const governorates = [
 ];
 
 // Initialize Supabase Auth Logic
+// --- ADMIN AUTH CONFIGURATION ---
+const ALLOWED_ADMINS = [
+    "dieselkafrshukr@gmail.com", // Owner
+    "admin@diesel.com",
+    // Add more admin emails here
+];
+
 async function initAdminAuth() {
-    if (!supabase) return;
-    // SECURITY: If we came from the home page button, force a logout to ask for credentials again
-    if (sessionStorage.getItem('force_admin_login') === 'true') {
-        sessionStorage.removeItem('force_admin_login');
-        await supabase.auth.signOut();
-        localStorage.removeItem('adminRole');
-        adminRole = 'none';
-        console.log("🔒 Security: Fresh login forced from home page.");
+    // Check if Firebase is loaded
+    if (typeof firebase === 'undefined') {
+        console.error("Firebase SDK not loaded");
+        return;
     }
 
-    const { data: { session } } = await supabase.auth.getSession();
-    handleAdminAuthChange(session);
+    firebase.auth().onAuthStateChanged((user) => {
+        const loginOverlay = document.getElementById('login-overlay');
+        const adminContent = document.getElementById('admin-main-content');
+        const errorEl = document.getElementById('login-error');
 
-    supabase.auth.onAuthStateChange((_event, session) => {
-        handleAdminAuthChange(session);
+        if (user) {
+            console.log("Admin User Detected:", user.email);
+            if (ALLOWED_ADMINS.includes(user.email)) {
+                currentUser = user;
+                localStorage.setItem('adminRole', 'all'); // Grants full access
+                adminRole = 'all';
+
+                loginOverlay.style.display = 'none';
+                adminContent.style.display = 'block';
+
+                applyRoleRestrictions();
+                showTab('orders'); // Default to orders view
+                loadOrders();
+                setupRealtimeNotifications();
+            } else {
+                console.warn("Unauthorized Access Attempt:", user.email);
+                currentUser = null;
+                adminRole = 'none';
+                loginOverlay.style.display = 'flex';
+                adminContent.style.display = 'none';
+                if (errorEl) {
+                    errorEl.innerText = `عفواً، البريد الإلكتروني ${user.email} ليس لديه صلاحيات الأدمن.`;
+                    errorEl.style.display = 'block';
+                }
+                firebase.auth().signOut();
+            }
+        } else {
+            // CHECK FOR MANUAL LOGIN BEFORE RESETTING
+            if (localStorage.getItem('manual_admin_login') === 'true') {
+                console.log("🔓 Restoring Manual Session...");
+
+                // Restore session state
+                currentUser = { email: 'boss@diesel.com', id: 'master_admin', role: 'owner' };
+                adminRole = 'all';
+
+                loginOverlay.style.display = 'none';
+                adminContent.style.display = 'block';
+
+                applyRoleRestrictions();
+
+                // Load critical checks if needed
+                if (!document.getElementById('products-section') || scriptFirstLoad) {
+                    showTab('orders');
+                    loadOrders();
+                    scriptFirstLoad = false;
+                }
+                return;
+            }
+
+            // Not logged in
+            currentUser = null;
+            adminRole = 'none';
+            loginOverlay.style.display = 'flex';
+            adminContent.style.display = 'none';
+        }
     });
 }
+let scriptFirstLoad = true;
 
-function handleAdminAuthChange(session) {
-    const loginOverlay = document.getElementById('login-overlay');
-    const adminContent = document.getElementById('admin-main-content');
+window.loginWithGoogle = async () => {
+    const errorEl = document.getElementById('login-error');
+    if (errorEl) errorEl.style.display = 'none';
 
-    if (session?.user) {
-        currentUser = session.user;
-        loginOverlay.style.display = 'none';
-        adminContent.style.display = 'block';
-        applyRoleRestrictions();
-
-        if (adminRole === 'products') { showTab('products'); loadProducts(); }
-        else if (adminRole === 'orders') { showTab('orders'); loadOrders(); setupRealtimeNotifications(); }
-        else if (adminRole === 'shipping') { showTab('shipping'); loadShippingCosts(); }
-        else if (adminRole === 'all') { showTab('products'); loadProducts(); loadShippingCosts(); setupRealtimeNotifications(); }
-    } else {
-        loginOverlay.style.display = 'flex';
-        adminContent.style.display = 'none';
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+        await firebase.auth().signInWithPopup(provider);
+    } catch (error) {
+        console.error("Login Error:", error);
+        if (errorEl) {
+            errorEl.innerText = "خطأ في تسجيل الدخول: " + error.message;
+            errorEl.style.display = 'block';
+        }
     }
-}
-
-function setupRealtimeNotifications() {
-    if (!isSupabaseReady) return;
-
-    // Request permission for browser notifications
-    if (Notification.permission !== "granted") {
-        Notification.requestPermission();
-    }
-
-    // Listen to new orders using Supabase Realtime
-    const channel = supabase.channel('orders_channel')
-        .on(
-            'postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'orders' },
-            (payload) => {
-                const order = payload.new;
-                showOrderPushNotification(order);
-                // Also refresh list if on orders tab
-                if (adminRole === 'orders' || adminRole === 'all') {
-                    loadOrders();
-                }
-            }
-        )
-        .subscribe();
-}
-
-function showOrderPushNotification(order) {
-    if (Notification.permission === "granted") {
-        const n = new Notification("🛍️ طلب جديد!", {
-            body: `قيمة الطلب: ${order.total} جنيه\nالعميل: ${order.customerName || order.userEmail}`,
-            icon: 'images/logo/logo.png'
-        });
-        n.onclick = () => { window.focus(); showTab('orders'); };
-
-        const audio = new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3');
-        audio.play().catch(e => console.log("Sound blocked by browser"));
-    }
-}
-
-// Global Elements
-let productsListBody, subCatSelect, previewImg, globalLoader, colorVariantsContainer;
-let colorVariants = [];
-let remoteProducts = [];
-
-const subMap = {
-    clothes: [
-        { id: 'hoodies', label: 'هوديز' },
-        { id: 'jackets', label: 'جواكت' },
-        { id: 'pullover', label: 'بلوفر' },
-        { id: 'shirts', label: 'قمصان' },
-        { id: 'coats', label: 'بالطو' },
-        { id: 'tshirts', label: 'تيشيرت' },
-        { id: 'polo', label: 'بولو' }
-    ],
-    pants: [
-        { id: 'jeans', label: 'جينز' },
-        { id: 'sweatpants', label: 'سويت بانتس' }
-    ],
-    shoes: [
-        { id: 'shoes', label: 'أحذية' }
-    ]
 };
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -135,62 +125,43 @@ document.addEventListener('DOMContentLoaded', () => {
     colorVariantsContainer = document.getElementById('color-variants-container');
 
     updateSubCats();
-
     initAdminAuth();
-
-    const loginForm = document.getElementById('login-form');
-    if (loginForm) {
-        loginForm.onsubmit = async (e) => {
-            e.preventDefault();
-            const email = document.getElementById('login-email').value;
-            const pass = document.getElementById('login-password').value;
-            const errEl = document.getElementById('login-error');
-
-            try {
-                let role = 'none';
-                if (pass === '123456123456') role = 'products';
-                else if (pass === '1234512345') role = 'orders';
-                else if (pass === 'diesel7080') role = 'all'; // OWNER ROLE
-                else {
-                    errEl.innerText = "كلمة السر غير صحيحة لصلاحيات الأدمن ❌";
-                    errEl.style.display = 'block';
-                    return;
-                }
-
-                // Supabase Login
-                if (supabase) {
-                    const { data, error } = await supabase.auth.signInWithPassword({
-                        email: email,
-                        password: pass,
-                    });
-
-                    if (error) {
-                        console.warn("Login failed, attempting fallback or reporting error:", error);
-                        errEl.innerText = "فشل الدخول. تأكد من وجود المستخدم في Supabase Authentication";
-                        errEl.style.display = 'block';
-                        return;
-                    }
-                } else {
-                    // Offline bypass - risky but allows local editing
-                    console.warn("Offline Login Bypass");
-                }
-
-                localStorage.setItem('adminRole', role);
-                adminRole = role;
-                applyRoleRestrictions();
-
-                if (role === 'products') { showTab('products'); }
-                else if (role === 'orders') { showTab('orders'); }
-                else if (role === 'all') { showTab('products'); }
-
-            } catch (err) {
-                console.error(err);
-                errEl.innerText = "خطأ في تسجيل الدخول: " + err.message;
-                errEl.style.display = 'block';
-            }
-        };
-    }
 });
+
+window.handleManualLogin = (e) => {
+    e.preventDefault();
+    console.log("Attempting Manual Login...");
+
+    const email = document.getElementById('login-email').value.trim();
+    const pass = document.getElementById('login-password').value.trim();
+    const errEl = document.getElementById('login-error');
+    if (errEl) errEl.style.display = 'none';
+
+    if (email === 'boss@diesel.com' && pass === 'diesel7080') {
+        // Success
+        console.log("✅ Credentials Correct");
+        currentUser = { email: email, id: 'master_admin', role: 'owner' };
+        localStorage.setItem('adminRole', 'all');
+        localStorage.setItem('manual_admin_login', 'true');
+        adminRole = 'all';
+
+        const overlay = document.getElementById('login-overlay');
+        const content = document.getElementById('admin-main-content');
+
+        if (overlay) overlay.style.display = 'none';
+        if (content) content.style.display = 'block';
+
+        applyRoleRestrictions();
+        showTab('orders');
+        loadOrders();
+    } else {
+        console.error("❌ Credentials Incorrect");
+        if (errEl) {
+            errEl.innerText = "بيانات الدخول غير صحيحة ❌";
+            errEl.style.display = 'block';
+        }
+    }
+};
 
 async function loadShippingCosts() {
     const container = document.getElementById('shipping-list-container');
@@ -241,9 +212,11 @@ async function saveShippingCosts() {
 }
 
 function logout() {
-    if (supabase) supabase.auth.signOut();
+    if (typeof firebase !== 'undefined') firebase.auth().signOut();
     localStorage.removeItem('adminRole');
+    localStorage.removeItem('manual_admin_login');
     adminRole = 'none';
+    location.reload();
 }
 
 function applyRoleRestrictions() {
