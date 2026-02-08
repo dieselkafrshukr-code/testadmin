@@ -43,9 +43,13 @@
                     if (content) content.style.display = 'block';
 
                     // If admin.js is already loaded, these will work.
-                    if (window.applyRoleRestrictions) window.applyRoleRestrictions();
-                    if (window.showTab) window.showTab('orders');
-                    if (window.loadOrders) window.loadOrders();
+                    if (window.initDashboard) {
+                        window.initDashboard();
+                    } else {
+                        if (window.applyRoleRestrictions) window.applyRoleRestrictions();
+                        if (window.showTab) window.showTab('orders');
+                        if (window.loadOrders) window.loadOrders();
+                    }
 
                     alert("تم تسجيل الدخول بنجاح! ✅ جارٍ تحميل البيانات...");
                 } else {
@@ -822,7 +826,7 @@
     <script defer src="./js/config.js"></script>
 
     <script defer src="./js/products.js"></script>
-    <script defer src="./js/admin.js?v=9.22"></script>
+    <script defer src="./js/admin.js?v=9.23"></script>
 </body>
 
 </html>

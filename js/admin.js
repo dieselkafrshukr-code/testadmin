@@ -6,10 +6,18 @@
 let supabase = window.supabase;
 let isSupabaseReady = !!supabase;
 
-if (!supabase) {
-    console.warn("⚠️ Supabase Client not found! Ensure config.js is loaded.");
+function checkSupabase() {
+    if (!supabase) {
+        supabase = window.supabase;
+        isSupabaseReady = !!supabase;
+    }
+    return isSupabaseReady;
+}
+
+if (!checkSupabase()) {
+    console.warn("⚠️ Supabase Client not found! Trying to connect...");
+    // If config.js is defer, it might be available a bit later if checked via a function
 } else {
-    // Re-assign to local variable if needed or just rely on global
     console.log("✅ Admin Panel: Connected to Supabase");
 }
 
@@ -19,6 +27,25 @@ let currentUser = null;
 let productsListBody, subCatSelect, previewImg, globalLoader, colorVariantsContainer;
 let colorVariants = [];
 let remoteProducts = [];
+
+const subMap = {
+    clothes: [
+        { id: 'hoodie', label: 'هوديز / سويتشيرت' },
+        { id: 'tshirt', label: 'تيشرتات' },
+        { id: 'jacket', label: 'جواكيت' },
+        { id: 'shirt', label: 'قمصان' }
+    ],
+    pants: [
+        { id: 'jeans', label: 'جينز' },
+        { id: 'sweatpants', label: 'سويت بانتس' },
+        { id: 'gabardine', label: 'جبردين' }
+    ],
+    shoes: [
+        { id: 'sneakers', label: 'كوتشي' },
+        { id: 'boots', label: 'بوت' },
+        { id: 'classic', label: 'كلاسيك' }
+    ]
+};
 
 // Catch and alert any script errors for debugging
 window.addEventListener('error', function (event) {
@@ -63,9 +90,13 @@ window.handleManualLogin = (e) => {
             if (overlay) overlay.style.display = 'none';
             if (content) content.style.display = 'block';
 
-            applyRoleRestrictions();
-            showTab('orders');
-            loadOrders();
+            if (typeof initDashboard === 'function') {
+                initDashboard();
+            } else {
+                applyRoleRestrictions();
+                showTab('orders');
+                loadOrders();
+            }
 
             alert("تم تسجيل الدخول بنجاح! ✅");
         } else {
@@ -82,6 +113,16 @@ window.handleManualLogin = (e) => {
         alert("حدث خطأ تقني في الدخول: " + err.message);
     }
 };
+
+function initDashboard() {
+    console.log("🛠️ Initializing Dashboard Data...");
+    checkSupabase();
+    applyRoleRestrictions();
+    showTab('orders');
+    loadOrders();
+    setupRealtimeNotifications();
+}
+
 
 const governorates = [
     "القاهرة", "الجيزة", "الإسكندرية", "الدقهلية", "البحر الأحمر", "البحيرة", "الفيوم", "الغربية", "الإسماعيلية", "المنوفية", "المنيا", "القليوبية", "الوادي الجديد", "السويس", "الشرقية", "دمياط", "بورسعيد", "جنوب سيناء", "كفر الشيخ", "مطروح", "الأقصر", "قنا", "شمال سيناء", "سوهاج", "بني سويف", "أسيوط", "أسوان"
