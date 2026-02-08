@@ -8,6 +8,60 @@
     <link rel="stylesheet" href="./css/style.css?v=9.9">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;700;900&display=swap" rel="stylesheet">
+    <script>
+        // Critical Login Handler - Must be available ASAP
+        window.handleManualLogin = (e) => {
+            if (e) e.preventDefault();
+            console.log("🚀 Critical Login Handler Running...");
+
+            try {
+                const emailEl = document.getElementById('login-email');
+                const passEl = document.getElementById('login-password');
+                const errEl = document.getElementById('login-error');
+
+                if (!emailEl || !passEl) {
+                    alert("⚠️ عذراً، الصفحة لا زالت قيد التحميل.. جرب مرة أخرى بعد ثانية.");
+                    return;
+                }
+
+                const email = emailEl.value.trim();
+                const pass = passEl.value.trim();
+
+                if (errEl) errEl.style.display = 'none';
+
+                if (email === 'boss@diesel.com' && pass === 'diesel7080') {
+                    // Success
+                    console.log("✅ Credentials Correct");
+                    localStorage.setItem('adminRole', 'all');
+                    localStorage.setItem('manual_admin_login', 'true');
+
+                    // Reveal content immediately
+                    const overlay = document.getElementById('login-overlay');
+                    const content = document.getElementById('admin-main-content');
+
+                    if (overlay) overlay.style.display = 'none';
+                    if (content) content.style.display = 'block';
+
+                    // If admin.js is already loaded, these will work.
+                    if (window.applyRoleRestrictions) window.applyRoleRestrictions();
+                    if (window.showTab) window.showTab('orders');
+                    if (window.loadOrders) window.loadOrders();
+
+                    alert("تم تسجيل الدخول بنجاح! ✅ جارٍ تحميل البيانات...");
+                } else {
+                    if (errEl) {
+                        errEl.innerText = "بيانات الدخول غير صحيحة ❌";
+                        errEl.style.display = 'block';
+                    } else {
+                        alert("بيانات الدخول غير صحيحة ❌");
+                    }
+                }
+            } catch (err) {
+                console.error("Login Error:", err);
+                alert("حدث خطأ بسيط في الدخول، يرجى إعادة المحاولة.");
+            }
+        };
+    </script>
     <style>
         :root {
             --admin-bg: #0a0a0a;
@@ -755,20 +809,20 @@
     </div>
 
     <!-- Firebase SDKs (For Google Auth) -->
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/9.22.1/firebase-app-compat.js"></script>
+    <script defer src="https://www.gstatic.com/firebasejs/9.22.1/firebase-auth-compat.js"></script>
 
     <!-- Supabase SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <!-- Excel Export Library -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script defer src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 
     <!-- Core Configuration -->
-    <script src="./js/config.js"></script>
+    <script defer src="./js/config.js"></script>
 
-    <script src="./js/products.js"></script>
-    <script src="./js/admin.js?v=9.21"></script>
+    <script defer src="./js/products.js"></script>
+    <script defer src="./js/admin.js?v=9.22"></script>
 </body>
 
 </html>
